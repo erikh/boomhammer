@@ -1,0 +1,21 @@
+[package]
+name = "boomhammer"
+version = "0.1.0"
+edition = "2021"
+description = "boomhammer is a small HTTP load testing tool"
+keywords = ["http", "load testing", "benchmark"]
+authors = ["Erik Hollensbe <erik+github@hollensbe.org>"]
+license = "MIT"
+homepage = "https://github.com/erikh/boomhammer"
+repository = "https://github.com/erikh/boomhammer"
+
+[dependencies]
+hyper = { version = "^1", features = [ "full" ] }
+anyhow = "^1"
+http = "^1"
+tokio = { version = "^1", features = [ "full" ] }
+http-body-util = "^0.1"
+hyper-util = { version = "^0.1", features = [ "full" ] } 
+num_cpus = "^1"
+fancy-duration = "^0.9"
+clap = { version = "^4", features = [ "derive" ] }
