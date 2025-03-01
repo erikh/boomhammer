@@ -76,7 +76,7 @@ async fn url_to_addr(url: String) -> Result<SocketAddr> {
 
 impl RequestBuilder {
     fn new(addr: SocketAddr, uri: String) -> Result<Self> {
-        let (used, incoming) = channel(1000);
+        let (used, incoming) = channel(10000);
 
         Ok(Self {
             used,
