@@ -210,8 +210,8 @@ async fn main() -> Result<()> {
     let close = Arc::new(Mutex::new(close));
 
     let start = std::time::Instant::now();
-    let url = args.url.clone();
-    let addr = url_to_addr(args.url).await?;
+    let url = args.url;
+    let addr = url_to_addr(url.clone()).await?;
     for _ in 0..args.cpus.unwrap_or(num_cpus::get()) {
         let rb = RequestBuilder::new(addr, url.to_string(), args.count)?;
         let w_close = close.clone();
