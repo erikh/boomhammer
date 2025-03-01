@@ -51,15 +51,17 @@ struct RequestBuilder {
 impl RequestBuilder {
     fn new(url: String) -> Result<Self> {
         let uri: hyper::Uri = url.parse()?;
-        let default_port = match uri.scheme_str() {
-            Some("https") => 443,
-            _ => 80,
+        let default_port: &str = match uri.scheme_str() {
+            Some("https") => "443",
+            _ => "80",
         };
-        let str_addr = format!(
-            "{}:{}",
-            uri.host().unwrap_or("127.0.0.1"),
-            uri.port_u16().unwrap_or(default_port)
-        );
+
+        let port = match uri.port() {
+            Some(p) => p.to_string(),
+            None => default_port.to_string(),
+        };
+
+        let str_addr = format!("{}:{}", uri.host().unwrap_or("127.0.0.1"), port);
 
         let addr = SocketAddr::from_str(&str_addr)?;
 
