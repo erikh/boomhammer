@@ -19,6 +19,15 @@ use tokio::sync::Mutex;
     about = "boomhammer: small HTTP load tester"
 )]
 struct Args {
+    #[arg(name = "Wait for", short = 'w', long = "wait", default_value = "10s")]
+    wait: fancy_duration::FancyDuration<std::time::Duration>,
+    #[arg(
+        name = "Request Count",
+        short = 'n',
+        long = "count",
+        default_value = "1000"
+    )]
+    count: usize,
     #[arg(name = "CPU Count", short = 'c', long = "cpu")]
     cpus: Option<usize>,
     url: String,
@@ -33,9 +42,9 @@ struct Stats {
 impl std::ops::AddAssign<bool> for Stats {
     fn add_assign(&mut self, rhs: bool) {
         if rhs {
-            self.successes.fetch_add(1, Ordering::SeqCst);
+            self.successes.fetch_add(1, Ordering::Relaxed);
         } else {
-            self.failures.fetch_add(1, Ordering::SeqCst);
+            self.failures.fetch_add(1, Ordering::Relaxed);
         }
     }
 }
@@ -75,8 +84,8 @@ async fn url_to_addr(url: String) -> Result<SocketAddr> {
 }
 
 impl RequestBuilder {
-    fn new(addr: SocketAddr, uri: String) -> Result<Self> {
-        let (used, incoming) = channel(10000);
+    fn new(addr: SocketAddr, uri: String, count: usize) -> Result<Self> {
+        let (used, incoming) = channel(count);
 
         Ok(Self {
             used,
@@ -204,7 +213,7 @@ async fn main() -> Result<()> {
     let url = args.url.clone();
     let addr = url_to_addr(args.url).await?;
     for _ in 0..args.cpus.unwrap_or(num_cpus::get()) {
-        let rb = RequestBuilder::new(addr, url.to_string())?;
+        let rb = RequestBuilder::new(addr, url.to_string(), args.count)?;
         let w_close = close.clone();
         let worker = rb.clone();
         let s = s.clone();
@@ -220,7 +229,7 @@ async fn main() -> Result<()> {
     drop(s);
 
     tokio::spawn(async move {
-        tokio::time::sleep(std::time::Duration::new(10, 0)).await;
+        tokio::time::sleep(args.wait.0).await;
         drop(signal);
     });
 
