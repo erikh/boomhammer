@@ -203,7 +203,6 @@ async fn main() -> Result<()> {
     let start = std::time::Instant::now();
     let url = args.url.clone();
     let addr = url_to_addr(args.url).await?;
-    println!("{}", addr);
     for _ in 0..args.cpus.unwrap_or(num_cpus::get()) {
         let rb = RequestBuilder::new(addr, url.to_string())?;
         let w_close = close.clone();
