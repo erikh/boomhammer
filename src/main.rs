@@ -1,10 +1,11 @@
 use anyhow::Result;
 use clap::Parser;
 use fancy_duration::AsFancyDuration;
+use hickory_resolver::{name_server::GenericConnector, TokioAsyncResolver};
 use hyper::client::conn::http1::SendRequest;
 use hyper::Request;
 use hyper_util::rt::TokioIo;
-use std::net::SocketAddr;
+use std::net::*;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -45,26 +46,36 @@ struct RequestBuilder {
     incoming: Arc<Mutex<Receiver<SendRequest<http_body_util::Empty<hyper::body::Bytes>>>>>,
     used: Sender<SendRequest<http_body_util::Empty<hyper::body::Bytes>>>,
     addr: SocketAddr,
-    uri: hyper::Uri,
+    uri: String,
+}
+
+async fn url_to_addr(url: String) -> Result<SocketAddr> {
+    let uri: hyper::Uri = url.parse()?;
+    let default_port: &str = match uri.scheme_str() {
+        Some("https") => "443",
+        _ => "80",
+    };
+
+    let port = match uri.port() {
+        Some(p) => p.to_string(),
+        None => default_port.to_string(),
+    };
+
+    let host = uri.host().unwrap_or("127.0.0.1");
+
+    let resolver = TokioAsyncResolver::from_system_conf(GenericConnector::default())?;
+    let addr = match resolver.lookup_ip(format!("{}.", host)).await {
+        Ok(response) => response.iter().next().unwrap(),
+        Err(_) => IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+    };
+
+    let str_addr = format!("{}:{}", addr.to_string(), port);
+
+    Ok(SocketAddr::from_str(&str_addr)?)
 }
 
 impl RequestBuilder {
-    fn new(url: String) -> Result<Self> {
-        let uri: hyper::Uri = url.parse()?;
-        let default_port: &str = match uri.scheme_str() {
-            Some("https") => "443",
-            _ => "80",
-        };
-
-        let port = match uri.port() {
-            Some(p) => p.to_string(),
-            None => default_port.to_string(),
-        };
-
-        let str_addr = format!("{}:{}", uri.host().unwrap_or("127.0.0.1"), port);
-
-        let addr = SocketAddr::from_str(&str_addr)?;
-
+    fn new(addr: SocketAddr, uri: String) -> Result<Self> {
         let (used, incoming) = channel(1000);
 
         Ok(Self {
@@ -190,9 +201,11 @@ async fn main() -> Result<()> {
     let close = Arc::new(Mutex::new(close));
 
     let start = std::time::Instant::now();
-
+    let url = args.url.clone();
+    let addr = url_to_addr(args.url).await?;
+    println!("{}", addr);
     for _ in 0..args.cpus.unwrap_or(num_cpus::get()) {
-        let rb = RequestBuilder::new(args.url.clone())?;
+        let rb = RequestBuilder::new(addr, url.to_string())?;
         let w_close = close.clone();
         let worker = rb.clone();
         let s = s.clone();

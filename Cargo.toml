@@ -19,3 +19,4 @@ hyper-util = { version = "^0.1", features = [ "full" ] }
 num_cpus = "^1"
 fancy-duration = "^0.9"
 clap = { version = "^4", features = [ "derive" ] }
+hickory-resolver = "^0.24.4"
